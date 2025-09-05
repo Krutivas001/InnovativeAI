@@ -5,8 +5,6 @@ from langchain.embeddings import OpenAIEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 
-OPEN_API_KEY="invalid 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"
-
 st.header("Chatbot to get details of President")
 with st.sidebar:
     st.title("Present of India Details")
@@ -25,7 +23,7 @@ with st.sidebar:
         )
         chunks = text_splitter.split_text(text)
 
-        embeddings = OpenAIEmbeddings(openai_api_key=OPEN_API_KEY)
+        embeddings = OpenAIEmbeddings(openai_api_key="AddLaterasPerKey")
         vector_store = FAISS.from_texts(chunks, embeddings)
         st.success("PDF file processed successfully!")
         user_question = st.text_input("Ask a question about the document:")
