@@ -26,7 +26,7 @@ with st.sidebar:
         embeddings = OpenAIEmbeddings(openai_api_key="AddLaterasPerKey")
         vector_store = FAISS.from_texts(chunks, embeddings)
         st.success("PDF file processed successfully!")
-        user_question = st.text_input("Ask a question about the document:")
+        user_question = st.text_input("Ask a question about the document:-")
         if user_question:
             response = vector_store.similarity_search(user_question)
             st.write(response)
