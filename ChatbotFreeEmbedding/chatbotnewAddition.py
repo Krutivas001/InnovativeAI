@@ -1,32 +1,48 @@
-import ollama as ol
 import streamlit as st
-from PyPDF2 import PdfReader
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.embeddings import OllamaEmbeddings
-from langchain.vectorstores import FAISS
+from langchain_community.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA
+from transformers import pipeline
+from langchain_community.llms import HuggingFacePipeline
 
-st.header("Chatbot to get details of President")
-with st.sidebar:
-    st.title("Present of India Details")
-    file=st.file_uploader("Upload your PDF file", type=["pdf"])
-    if file is not None:
-        pdf_reader = PdfReader(file)
-        text = ""
-        for page in pdf_reader.pages:
-            text += page.extract_text()
+# Streamlit UI
+st.set_page_config(page_title="PDF Chatbot", layout="wide")
+st.header("📄 Chat with your PDF using HuggingFace + LangChain")
 
-        text_splitter = CharacterTextSplitter(
-            separator="\n",
-            chunk_size=1000,
-            chunk_overlap=200,
-            length_function=len
-        )
-        chunks = text_splitter.split_text(text)
-        embeddings = OllamaEmbeddings(model="llama3.2")
-        vector_store = FAISS.from_texts(chunks, embeddings)
-        st.success("PDF file processed successfully!")
-        user_question = st.text_input("Ask a question about the document:-")
-        if user_question:
-            response = vector_store.similarity_search(user_question)
-            st.write(response)
+# File uploader
+pdf_file = st.file_uploader("Upload a PDF", type=["pdf"])
+
+if pdf_file:
+    with open("uploaded.pdf", "wb") as f:
+        f.write(pdf_file.read())
+
+    # Load and split PDF
+    loader = PyPDFLoader("uploaded.pdf")
+    docs = loader.load()
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+    documents = text_splitter.split_documents(docs)
+
+    # HuggingFace Embeddings
+    embeddings_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+
+    # Create FAISS vector DB
+    db = FAISS.from_documents(documents, embeddings_model)
+
+    # Define retriever
+    retriever = db.as_retriever(search_kwargs={"k": 3})
+
+    generator = pipeline("text2text-generation", model="google/flan-t5-base")
+    llm = HuggingFacePipeline(pipeline=generator)
+
+    # Create QA chain
+    qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
+
+    # Chat interface
+    st.subheader("💬 Ask questions about your PDF")
+    user_query = st.text_input("Enter your question:")
+
+    if user_query:
+        response = qa_chain.run(user_query)
+        st.write("**Answer:**", response)
